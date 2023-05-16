@@ -1,15 +1,18 @@
 const express = require('express');
 const port = 8000;
-// const cors = require("cors");
-// const bodyParser = require("body-parser");
+const cors = require("cors");
+const bearertoken = require("express-bearer-token");
+const bodyParser = require("body-parser");
 const app = express();
 const jwt = require('jsonwebtoken');
-// app.use(cors());
-// app.use(bodyParser.urlencoded({ extended: true }));
-// app.use(bodyParser.json());
-// app.use('/public', express.static('public'))
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+app.use('/public', express.static('public'))
+// app.use(express.json());
+app.use(bearertoken())
 
-app.use(express.json());
+
 
 //cek token expire 
 // app.get("/verify/:token", (req, res)=>{

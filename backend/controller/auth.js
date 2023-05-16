@@ -9,7 +9,7 @@ const authController = {
     register: async (req, res) =>{
         try {
             const { username, email, fullname, bio, picture, password, confim_pass } = req.body
-
+            
             const cekUname = await User.findOne({
                 where:{
                     username
@@ -35,7 +35,7 @@ const authController = {
 
             const isContainsUppercase = /^(?=.*[A-Z]).*$/;
             if (!isContainsUppercase.test(pwd)) {
-              return res.status(402).json({
+              return res.status(402).send({
                 message: "Password must have at least one Uppercase Character."
               });
             }
@@ -71,28 +71,23 @@ const authController = {
             const salt = await bcrypt.genSalt(10);
             const hashPassword = await bcrypt.hash(pwd, salt);
             
-            await User.create({username, email, password: hashPassword});
-
-            const token = jwt.sign({
-                data: 'Token Data',
-            }, 'qodars97', { expiresIn: '10m' }  
+          const data=  await User.create({username, email, password: hashPassword});
+            const payload= {id: data.user_id, name:data.username}
+            const token = jwt.sign(payload, 'qodars97', { expiresIn: '12h' }  
         );
 
             let mail = {
                 from:`Admin <group3nodejs@gmail.com`,
                 to: `${email}`,
                 subject: `Verify Account`,
-                text:`Hi! There, You have recently visited 
-                our website and entered your email.
-                Please follow the given link to verify your email
-                http://localhost:3000/verify/${token} 
-                Thanks`
+                html:`<a href="http://localhost:3000/verify/${token}"> Click here for verification for your account</a>`
             }
 
             transporter.sendMail(mail,(errMail, resMail) =>{
                 if (errMail) {
                     console.log(errMail)
                 }
+                res.status(200).send({message:"Registration success, Check your email", success: true})
             })
 
             return res.status(200).json({
@@ -104,6 +99,51 @@ const authController = {
                 message: err.message
             })
         }
+    },
+    verification: async (req, res) =>{
+        // try {
+        //     const {token} = req.params
+        //     jwt.verify(token, 'qodars97', async (err) => {
+        //         if (err) {
+        //             console.log(err);
+        //             res.send("Email verification failed, possibly the link is invalid or expired");
+        //         }
+        //         else {
+        //             const status = "verified"
+        //             const id = jwt.verify(token,'qodars97').id
+    
+        //         await User.update({ status },{
+        //             where:{
+        //                 user_id: id
+        //             }
+        //         });
+                
+        //         res.status(200).json({
+        //             message: "anda berhasil"
+        //           })
+        //         }
+        //     })
+                
+            
+        // }catch (err) {
+        //     console.log(err)
+        //     return res.status(err.statusCode || 500).json({
+        //         message: err.message
+        //     })
+        // }
+
+        const status = "verified"
+        const id = req.user.id
+        await User.update({ status },
+            {
+                where: {
+                    user_id: id
+                }
+            });
+            return res.status(200).json({
+                message: "Profile berhasil diupdate"
+            })
+
     },
     forgotPassword: async (req, res) =>{
         try {
@@ -122,17 +162,13 @@ const authController = {
 
             if(cekEmail){ 
                 res.status(200).json({
-                    message: `${email} berhasil ditemukan!!. Silahkan cek kotak masuk email anda`,  
+                    message: `email berhasil ditemukan!!. Silahkan cek kotak masuk email anda`,  
                 });
                 let mail = {
                     from:`Admin <group3nodejs@gmail.com`,
                     to: `${email}`,
                     subject: `Forgot Password`,
-                    text:`Hi! There, You have recently visited 
-                    our website and entered your email.
-                    Please follow the given link to Reset your password
-                    http://localhost:3000/verify/${token} 
-                    Thanks`
+                    html:`<a href="http://localhost:3000/page/editpassword/${token}"> Click here for your update password</a>`
                 }
     
                 transporter.sendMail(mail,(errMail, resMail) =>{
@@ -143,7 +179,7 @@ const authController = {
                return cekEmail
             }else{
                 return res.status(409).json({
-                    message: ` data ${email} tidak ada atau email belum terdaftar`
+                    message: ` data tidak ada atau email belum terdaftar`
                 })
             }
         } catch (err) {
@@ -221,9 +257,9 @@ const authController = {
     },
     login: async (req, res) =>{
         try {
-            const { username="", email="", password } = req.body;
+            const {  password } = req.body;
 
-            const checkData = await User.findOne({ where:{[loginOpsi.Op.or]:[ { email }, { username }] }});
+            const checkData = await User.findOne({ where:{[loginOpsi.Op.or]:[ { email: req.body.emailorusername }, { username: req.body.emailorusername }] }});
             if (!checkData) {
                 return res.status(409).json({
                     message: "no user found"
@@ -237,11 +273,12 @@ const authController = {
                 })
             }
 
-            let payload = { id: checkData.user_id };
+            let payload = {id: checkData.user_id, username: checkData.username,
+                            bio: checkData.bio, fullname:checkData.fullname };
             const token = jwt.sign(payload, 'rinaldy97',{expiresIn: '24h'}
             )
 
-            return res.status(200).json({
+            return res.status(200).send({
                 token,
                 message: "success"
             })
